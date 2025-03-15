@@ -5,6 +5,10 @@ import time
 import math
 import os
 import sys
+import json
+import platform
+import uuid
+import multiprocessing
 import threading
 import inspect
 import queue
@@ -29,8 +33,12 @@ class record_t:
     ts: float = 0
     seq: int = 0
     level: int = level_t.N
+    nid: int = 0
+    nname: str = ""
     pid: int = -1
+    pname: str = ""
     tid: int = -1
+    tname: str = ""
     file: str = ""
     lineno: int = -1
     func: str = ""
@@ -41,10 +49,11 @@ class record_t:
         μs = int(math.modf(self.ts)[0] * 1_000_000)
 
         text = (
-            f"[{st.tm_year:04d}{st.tm_mon:02d}{st.tm_mday:02d}.{st.tm_hour:02d}{st.tm_min:02d}{st.tm_sec:02d}.{μs:06d} {self.seq:d}]"
-            f"[{self.pid}:{self.tid}]"
-            f"[{os.path.basename(self.file)}:{self.lineno} {self.func} {level_t(self.level).name}]"
-            " "
+            f"[{st.tm_year:04d}{st.tm_mon:02d}{st.tm_mday:02d}.{st.tm_hour:02d}{st.tm_min:02d}{st.tm_sec:02d}.{μs:06d} {self.seq:6d}]"
+            f"[{level_t(self.level).name}]"
+            f"[{self.nid:012x} {self.pid:6d} {self.tid:6d}]"
+            f"[{self.nname} {self.pname} {self.tname}]"
+            f"[{os.path.basename(self.file)}:{self.lineno} {self.func}]"
             f"{self.message}"
             "\n"
         )
@@ -52,6 +61,9 @@ class record_t:
         # text = "[20000101 000000.000 0][0 0][main.py:0 main D]hello world\n"
 
         return text
+
+    def __repr__(self) -> str:
+        return json.dumps(self.__dict__)
 
 
 def get_frame(back: int = 0) -> types.FrameType | None:
@@ -67,7 +79,7 @@ def get_frame(back: int = 0) -> types.FrameType | None:
 
 
 class mlogger:
-    """迷你日志，用于库调试自己使用，请使用正式的logger"""
+    """迷你日志, 用于库调试自己使用. 请使用正式的logger"""
 
     seq_lock = threading.Lock()
     seq = 0
@@ -88,19 +100,23 @@ class mlogger:
         if ep.debug == 0:
             return
 
-        frame = get_frame(1)
-
         record = record_t(
             ts=time.time(),
             seq=cls.get_seq(),
             level=level_t.D,
+            nid=uuid.getnode(),
+            nname=platform.node(),
             pid=os.getpid(),
+            pname=multiprocessing.current_process().name,
             tid=threading.get_ident(),
+            tname=threading.current_thread().name,
             file="",
             lineno=0,
             func="",
             message=message,
         )
+
+        frame = get_frame(1)
 
         if frame:
             record.file = frame.f_code.co_filename
@@ -163,6 +179,8 @@ class logger_t:
         return self.seq
 
     def log_open(self):
+        self.nid = uuid.getnode()
+        self.nname = platform.node()
         if not os.path.exists(self.dir):
             os.makedirs(self.dir)
 
@@ -219,8 +237,12 @@ class logger_t:
                     ts=time.time(),
                     seq=self.get_seq(),
                     level=level_t.E,
+                    nid=self.nid,
+                    nname=self.nname,
                     pid=os.getpid(),
+                    pname=multiprocessing.current_process().name,
                     tid=threading.get_ident(),
+                    tname=threading.current_thread().name,
                     file=__file__,
                     lineno=0,
                     func=self.eplog_worker.__qualname__,
@@ -236,7 +258,7 @@ class logger_t:
             if self.logf is not None:
                 try:
                     record = self.logq.get(block=True, timeout=1)
-                    self.logf.write(str(record).encode("utf-8"))
+                    self.logf.write(str(record).encode())
                 except queue.Empty:
                     pass
 
@@ -244,15 +266,19 @@ class logger_t:
 
     def rawlog_now(
         self,
-        ts: float = 0,
-        seq: int = 0,
-        level: int = level_t.N,
-        pid: int = 0,
-        tid: int = 0,
-        file: str = "",
-        lineno: int = 0,
-        func: str = "",
-        message: str = "",
+        ts: float,
+        seq: int,
+        level: int,
+        nid: int,
+        nname: str,
+        pid: int,
+        pname: str,
+        tid: int,
+        tname: str,
+        file: str,
+        lineno: int,
+        func: str,
+        message: str,
     ):
         if level < self.level:
             return
@@ -261,8 +287,12 @@ class logger_t:
             ts=ts,
             seq=seq,
             level=level,
+            nid=nid,
+            nname=nname,
             pid=pid,
+            pname=pname,
             tid=tid,
+            tname=tname,
             file=file,
             lineno=lineno,
             func=func,
@@ -270,7 +300,7 @@ class logger_t:
         )
 
         if self.logf is not None:
-            self.logf.write(str(record).encode("utf-8"))
+            self.logf.write(str(record).encode())
 
     def output(self, record: record_t):
         try:
@@ -283,15 +313,19 @@ class logger_t:
 
     def rawlog(
         self,
-        ts: float = 0,
-        seq: int = 0,
-        level: int = level_t.N,
-        pid: int = 0,
-        tid: int = 0,
-        file: str = "",
-        lineno: int = 0,
-        func: str = "",
-        message: str = "",
+        ts: float,
+        seq: int,
+        level: int,
+        nid: int,
+        nname: str,
+        pid: int,
+        pname: str,
+        tid: int,
+        tname: str,
+        file: str,
+        lineno: int,
+        func: str,
+        message: str,
     ):
         if level < self.level:
             return
@@ -300,8 +334,12 @@ class logger_t:
             ts=ts,
             seq=seq,
             level=level,
+            nid=nid,
+            nname=nname,
             pid=pid,
+            pname=pname,
             tid=tid,
+            tname=tname,
             file=file,
             lineno=lineno,
             func=func,
@@ -319,8 +357,12 @@ class logger_t:
             ts=time.time(),
             seq=self.get_seq(),
             level=level_t.D,
+            nid=self.nid,
+            nname=self.nname,
             pid=os.getpid(),
+            pname=multiprocessing.current_process().name,
             tid=threading.get_ident(),
+            tname=threading.current_thread().name,
             file="",
             lineno=0,
             func="",
@@ -344,8 +386,12 @@ class logger_t:
             ts=time.time(),
             seq=self.get_seq(),
             level=level_t.I,
+            nid=self.nid,
+            nname=self.nname,
             pid=os.getpid(),
+            pname=multiprocessing.current_process().name,
             tid=threading.get_ident(),
+            tname=threading.current_thread().name,
             file="",
             lineno=0,
             func="",
@@ -369,8 +415,12 @@ class logger_t:
             ts=time.time(),
             seq=self.get_seq(),
             level=level_t.W,
+            nid=self.nid,
+            nname=self.nname,
             pid=os.getpid(),
+            pname=multiprocessing.current_process().name,
             tid=threading.get_ident(),
+            tname=threading.current_thread().name,
             file="",
             lineno=0,
             func="",
@@ -394,8 +444,12 @@ class logger_t:
             ts=time.time(),
             seq=self.get_seq(),
             level=level_t.E,
+            nid=self.nid,
+            nname=self.nname,
             pid=os.getpid(),
+            pname=multiprocessing.current_process().name,
             tid=threading.get_ident(),
+            tname=threading.current_thread().name,
             file="",
             lineno=0,
             func="",
@@ -419,8 +473,12 @@ class logger_t:
             ts=time.time(),
             seq=self.get_seq(),
             level=level_t.T,
+            nid=self.nid,
+            nname=self.nname,
             pid=os.getpid(),
+            pname=multiprocessing.current_process().name,
             tid=threading.get_ident(),
+            tname=threading.current_thread().name,
             file="",
             lineno=0,
             func="",
@@ -435,7 +493,7 @@ class logger_t:
         self.rawlog(**record.__dict__)
 
         if ep.debug and self.logft is not None:
-            self.logft.write(str(record).encode("utf-8"))
+            self.logft.write(str(record).encode())
 
 
 eplog = logger_t()

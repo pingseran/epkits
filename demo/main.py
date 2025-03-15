@@ -3,8 +3,6 @@
 import sys
 import os
 
-import logging
-
 # 将 src 目录添加到 sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
@@ -20,16 +18,19 @@ def worker(n: int):
     eplog = ep.logger_t()
     for i in range(n):
         eplog.info(f"测试日志, i = {i}")
-        time.sleep(0.001)
+        # time.sleep(0.001)
 
 
 if __name__ == "__main__":
     eplog = ep.logger_t()
 
     n = 1000
-    m = 100
+    m = 16
     start = time.perf_counter()
-    threads = [threading.Thread(target=worker, args=(n,), daemon=True) for _ in range(m)]
+    threads = [
+        threading.Thread(target=worker, args=(n,), name=f"worker_thread-{i:03d}", daemon=True)
+        for i in range(m)
+    ]
     for t in threads:
         t.start()
     for t in threads:
