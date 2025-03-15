@@ -18,7 +18,7 @@ def worker(n: int):
     eplog = ep.logger_t()
     for i in range(n):
         eplog.info(f"测试日志, i = {i}")
-        # time.sleep(0.001)
+        time.sleep(0.001)
 
 
 if __name__ == "__main__":
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     m = 16
     start = time.perf_counter()
     threads = [
-        threading.Thread(target=worker, args=(n,), name=f"worker_thread-{i:03d}", daemon=True)
+        threading.Thread(target=worker, args=(n,), name=f"worker-{i:03d}", daemon=True)
         for i in range(m)
     ]
     for t in threads:

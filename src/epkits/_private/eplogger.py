@@ -61,7 +61,7 @@ class record_t:
         return text
 
     def __repr__(self) -> str:
-        return json.dumps(self.__dict__)
+        return json.dumps(self.__dict__, ensure_ascii=False) + "\n"
 
 
 def get_frame(back: int = 0) -> types.FrameType | None:
