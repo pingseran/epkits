@@ -58,8 +58,6 @@ class record_t:
             "\n"
         )
 
-        # text = "[20000101 000000.000 0][0 0][main.py:0 main D]hello world\n"
-
         return text
 
     def __repr__(self) -> str:
