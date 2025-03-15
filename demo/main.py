@@ -3,6 +3,8 @@
 import sys
 import os
 
+import logging
+
 # 将 src 目录添加到 sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 

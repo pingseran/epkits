@@ -120,13 +120,14 @@ class logger_t:
                 if not cls._instance:
                     cls._instance = super(logger_t, cls).__new__(cls, *args, **kwargs)
                     cls._instance._initialized = False
+                    cls._instance.init()
         return cls._instance
 
     def __init__(self):
-        if self._initialized:
-            return
-        self._initialized = True
+        pass
 
+    def init(self):
+        self._initialized = True
         self.seq = 0
         self.seq_lock = threading.Lock()
 
@@ -153,14 +154,6 @@ class logger_t:
         self.log_thread.start()
 
         # mlogger.debug("")
-
-    # @classmethod
-    # def get_instance(cls) -> logger_t:
-    #     if not cls._instance:
-    #         with cls._lock:
-    #             if not cls._instance:
-    #                 cls._instance = logger()
-    #     return cls._instance
 
     def get_seq(self) -> int:
         if self.seq_lock.acquire(timeout=0.01):
