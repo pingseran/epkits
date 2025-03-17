@@ -3,21 +3,24 @@
 import sys
 import os
 
+
 # 将 src 目录添加到 sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
 import threading
 import time
 
+
 import epkits as ep
 
 ep.debug = 1
 
+sys.path.append(".")
+
 
 def worker(n: int):
-    eplog = ep.logger_t()
     for i in range(n):
-        eplog.info(
+        ep.logger.info(
             f"测试日志, i = {i:06d}"
             " "
             "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789"
@@ -35,7 +38,6 @@ def worker(n: int):
 
 
 if __name__ == "__main__":
-    eplog = ep.logger_t()
 
     n = 1000
     m = 16
