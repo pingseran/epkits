@@ -36,7 +36,7 @@ class logger_t:
         return self.seq
 
     def output(self, record: record_t) -> None:
-        if record.level == level_t.T:
+        if debug and record.level == level_t.T:
             logger_server.handle(record, quick=True)
 
         logger_server.handle(record)
