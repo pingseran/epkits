@@ -10,6 +10,7 @@ from .record import *
 from .mlogger import *
 from .logger import *
 from .logger_server import *
+from .test import *
 
 if __name__ == "__main__":
     pass

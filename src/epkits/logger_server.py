@@ -8,6 +8,7 @@ import threading
 import queue
 
 from .record import record_t
+from .mlogger import mlogger
 
 
 class logger_server_t:
@@ -23,7 +24,7 @@ class logger_server_t:
         self.log_quick_file = None
 
         self.log_queue = queue.Queue(maxsize=1000 * 1000)
-        self.log_quick_queue = queue.Queue(maxsize=1000)
+        self.log_quick_queue = queue.Queue(maxsize=1000 * 1000)
 
         self.log_thread_stop = 0
         self.log_thread = threading.Thread(target=self.worker, name="eplog", daemon=True)
@@ -55,11 +56,13 @@ class logger_server_t:
             self.log_quick_file = open(
                 os.path.join(self.dir, f"{self.prefix}.quick.log"), "ab", buffering=0
             )
+            self.log_quick_file.write("\n\n\n\n\n\n\n\n\n\n".encode())
         except OSError:
             self.log_quick_file = None
 
         try:
             self.log_file = open(os.path.join(self.dir, f"{self.prefix}.0.log"), "ab", buffering=0)
+            self.log_file.write("\n\n\n\n\n\n\n\n\n\n".encode())
         except OSError:
             self.log_file = None
 

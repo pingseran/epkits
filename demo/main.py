@@ -15,8 +15,6 @@ import epkits as ep
 
 ep.debug = 1
 
-sys.path.append(".")
-
 
 def worker(n: int):
     for i in range(n):

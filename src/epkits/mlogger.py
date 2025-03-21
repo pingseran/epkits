@@ -4,11 +4,12 @@ import threading
 import multiprocessing
 import os
 import sys
+import pathlib
 import platform
 import time
 import uuid
 
-from .core import debug
+from .core import is_debug_enabled
 from .zero import get_frame
 from .level import level_t
 from .record import record_t
@@ -28,7 +29,7 @@ class mlogger_t:
         return self.seq
 
     def debug(self, message: str = "") -> None:
-        if debug == 0:
+        if not is_debug_enabled():
             return
 
         record = record_t(
@@ -50,7 +51,7 @@ class mlogger_t:
         frame = get_frame(1)
 
         if frame:
-            record.file = frame.f_code.co_filename
+            record.file = pathlib.PurePath(frame.f_code.co_filename).as_posix()
             record.lineno = frame.f_lineno
             record.func = frame.f_code.co_qualname
 
