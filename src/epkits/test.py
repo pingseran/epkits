@@ -1,4 +1,4 @@
-__all__ = ["testsuit_base_t", "skip", "run_all_tests"]
+__all__ = ["reg_process_events_handle", "skip", "testsuit_base_t", "run_all_tests"]
 
 import time
 import os
@@ -43,6 +43,19 @@ class test_exception_t(exception_t):
 
 class check_err(test_exception_t):
     pass
+
+
+process_events_handle: Callable | None = None
+
+
+def reg_process_events_handle(handle: Callable | None) -> None:
+    global process_events_handle
+    process_events_handle = handle
+
+
+def process_events() -> None:
+    if process_events_handle:
+        process_events_handle()
 
 
 def skip(condition: bool = True) -> Callable[[Any], Any]:
@@ -138,6 +151,7 @@ class check_eq_t(check_base_t):
 
     @override
     def __enter__(self) -> Self:
+        process_events()
         return self
 
     @override
@@ -147,6 +161,8 @@ class check_eq_t(check_base_t):
         exc_value: BaseException | None,
         exc_traceback: types.TracebackType | None,
     ) -> bool | None:
+        process_events()
+
         frame = get_frame(1)
 
         record = record_t(
@@ -204,6 +220,8 @@ def run_all_tests() -> int:
 ********************************************************************************"""
     )
 
+    process_events()
+
     testsuit_base_t._testsuit_classes.sort(key=lambda testsuit_class: testsuit_class.__name__)
 
     for testsuit_class in testsuit_base_t._testsuit_classes:
@@ -224,8 +242,12 @@ def run_all_tests() -> int:
     test_summary["order"]["total"] = len(testcases)
     test_summary["all"]["total"] = len(testcases)
 
+    process_events()
+
     test_summary["start_time"] = round(time.time(), 3)
     for order, testcase in enumerate(testcases, start=1):
+        process_events()
+
         test_summary["order"][order] = str(testcase)
 
         test_summary["testcases"][str(testcase)] = {
@@ -279,6 +301,7 @@ def run_all_tests() -> int:
             )
 
             try:
+                process_events()
                 env_up_ret = testcase.env_up()
                 if env_up_ret:
                     logger.rawlog(
@@ -300,9 +323,10 @@ def run_all_tests() -> int:
                     )
                     raise test_exception_t()
 
-                time.sleep(random.random())
+                process_events()
                 testcase.testmethod()
 
+                process_events()
                 env_down_ret = testcase.env_down()
                 if env_down_ret:
                     logger.rawlog(
@@ -364,7 +388,7 @@ def run_all_tests() -> int:
                     ).__dict__
                 )
             finally:
-                pass
+                process_events()
 
         testcase_detail["end_time"] = round(time.time(), 3)
         testcase_detail["duration"] = round(

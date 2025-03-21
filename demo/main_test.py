@@ -12,6 +12,11 @@ import epkits as ep
 ep.enable_debug()
 
 
+@ep.reg_process_events_handle
+def process_events() -> None:
+    pass
+
+
 def twosum(a: int, b: int) -> int:
     raise ValueError("故意抛出异常")
     return a + b
