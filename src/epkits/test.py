@@ -194,7 +194,7 @@ class check_eq_t(check_base_t):
 testcases: list[testsuit_base_t] = []
 
 
-def run_all_tests(argv: list[str]) -> int:
+def run_all_tests() -> int:
     logger.test(
         """
 ********************************************************************************
@@ -203,8 +203,6 @@ def run_all_tests(argv: list[str]) -> int:
 *
 ********************************************************************************"""
     )
-
-    logger.test("argv = " + " ".join(argv))
 
     testsuit_base_t._testsuit_classes.sort(key=lambda testsuit_class: testsuit_class.__name__)
 
@@ -378,4 +376,16 @@ def run_all_tests(argv: list[str]) -> int:
 
     logger.test("\n" + json.dumps(test_summary, ensure_ascii=False, indent=4))
 
+    logger.test(
+        f"""
+所有测试用例 耗时: {test_summary["duration"]:.03f}
+    总计: {test_summary["all"]["total"]:6d}
+    跳过: {test_summary["all"]["skiped"]:6d}
+    失败: {test_summary["all"]["failed"]:6d}
+    通过: {test_summary["all"]["passed"]:6d}
+"""
+    )
+
+    if test_summary["all"]["failed"]:
+        return 1
     return 0

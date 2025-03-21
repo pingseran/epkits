@@ -50,5 +50,5 @@ class test_1_t(ep.testsuit_base_t):
 
 
 if __name__ == "__main__":
-    exit_code = ep.run_all_tests(sys.argv)
+    exit_code = ep.run_all_tests()
     exit(exit_code)
