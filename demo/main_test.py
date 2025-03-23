@@ -18,22 +18,19 @@ def process_events() -> None:
 
 
 def twosum(a: int, b: int) -> int:
-    raise ValueError("故意抛出异常")
+    # raise ValueError("故意抛出异常")
     return a + b
 
 
 class test_twosum_t(ep.testsuit_base_t):
-    def env_up(self) -> int:
-        return 1
-
-    def env_down(self) -> int:
-        return 1
-
     def test_twosum_positive(self) -> None:
         with self.check_eq(4) as check:
             check.ret = twosum(1, 2)
 
     def test_twosum_negative(self) -> None:
+        with self.check_exc(ValueError) as check:
+            check.ret = twosum(-1, -1)
+
         with self.check_eq(-2) as check:
             check.ret = twosum(-1, -1)
 

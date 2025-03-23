@@ -11,7 +11,7 @@ import json
 from functools import wraps
 
 from abc import ABC, abstractmethod
-from typing import final, Any, Self, Callable, override, get_type_hints
+from typing import final, Any, Union, Self, Callable, override
 import types
 
 from .core import exception_t
@@ -107,14 +107,95 @@ class testsuit_base_t(ABC):
     @final
     def __repr__(self) -> str:
         return f"testcase({self.name})"
+    
+    @final
+    def check_passed(self) -> "check_base_t":
+        check = check_passed_t(self)
+        return check
 
     @final
-    def skip(self) -> None:
-        setattr(self, "_skip", True)
+    def check_failed(self) -> "check_base_t":
+        check = check_failed_t(self)
+        return check
+
+    @final
+    def check_true(self) -> "check_base_t":
+        check = check_true_t(self)
+        return check
+
+    @final
+    def check_false(self) -> "check_base_t":
+        check = check_false_t(self)
+        return check
 
     @final
     def check_eq(self, exp_ret: Any) -> "check_base_t":
         check = check_eq_t(self, exp_ret)
+        return check
+
+    @final
+    def check_ne(self, exp_ret: Any) -> "check_base_t":
+        check = check_ne_t(self, exp_ret)
+        return check
+
+    @final
+    def check_lt(self, exp_ret: Any) -> "check_base_t":
+        check = check_lt_t(self, exp_ret)
+        return check
+
+    @final
+    def check_le(self, exp_ret: Any) -> "check_base_t":
+        check = check_le_t(self, exp_ret)
+        return check
+
+    @final
+    def check_gt(self, exp_ret: Any) -> "check_base_t":
+        check = check_gt_t(self, exp_ret)
+        return check
+
+    @final
+    def check_ge(self, exp_ret: Any) -> "check_base_t":
+        check = check_ge_t(self, exp_ret)
+        return check
+
+    @final
+    def check_is(self, exp_ret: Any) -> "check_base_t":
+        check = check_is_t(self, exp_ret)
+        return check
+
+    @final
+    def check_not_is(self, exp_ret: Any) -> "check_base_t":
+        check = check_not_is_t(self, exp_ret)
+        return check
+
+    @final
+    def check_in(self, exp_ret: Any) -> "check_base_t":
+        check = check_in_t(self, exp_ret)
+        return check
+
+    @final
+    def check_not_in(self, exp_ret: Any) -> "check_base_t":
+        check = check_not_in_t(self, exp_ret)
+        return check
+
+    @final
+    def check_isinstance(self, exp_ret: Any) -> "check_base_t":
+        check = check_isinstance_t(self, exp_ret)
+        return check
+
+    @final
+    def check_not_isinstance(self, exp_ret: Any) -> "check_base_t":
+        check = check_not_isinstance_t(self, exp_ret)
+        return check
+
+    @final
+    def check_exc(self, exp_ret: Any) -> "check_base_t":
+        check = check_exc_t(self, exp_ret)
+        return check
+
+    @final
+    def check_not_exc(self, exp_ret: Any) -> "check_base_t":
+        check = check_not_exc_t(self, exp_ret)
         return check
 
 
@@ -131,6 +212,7 @@ class check_base_t(ABC):
 
     @abstractmethod
     def __enter__(self) -> Self:
+        process_events()
         return self
 
     @abstractmethod
@@ -140,6 +222,251 @@ class check_base_t(ABC):
         exc_value: BaseException | None,
         exc_traceback: types.TracebackType | None,
     ) -> bool | None:
+        process_events()
+        return True
+
+class check_passed_t(check_base_t):
+    @override
+    def __init__(self, testcase: testsuit_base_t) -> None:
+        super().__init__(testcase)
+
+    @override
+    def __enter__(self) -> Self:
+        process_events()
+        return self
+
+    @override
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        exc_traceback: types.TracebackType | None,
+    ) -> bool | None:
+        process_events()
+
+        frame = get_frame(1)
+
+        record = record_t(
+            ts=time.time(),
+            seq=logger.get_seq(level_t.T),
+            level=level_t.T,
+            nid=logger.get_nid(),
+            nname=logger.get_nname(),
+            pid=os.getpid(),
+            pname=multiprocessing.current_process().name,
+            tid=threading.get_ident(),
+            tname=threading.current_thread().name,
+            file="",
+            lineno=0,
+            func="",
+            message="",
+        )
+
+        if frame:
+            record.file = pathlib.PurePath(frame.f_code.co_filename).as_posix()
+            record.lineno = frame.f_lineno
+            record.func = frame.f_code.co_qualname
+
+        self.err = 0
+        if exc_type:
+            if exc_traceback:
+                tb_lineno = exc_traceback.tb_lineno
+            else:
+                tb_lineno = 0
+            record.message = f'核对通过: 发生异常 = {exc_type}("{exc_value}") ({record.file}:{tb_lineno} {record.func})'
+        else:
+            record.message = f"核对通过: 期待返回 = Any, 实际返回 = {self.ret}"
+
+        logger.rawlog(**record.__dict__)
+
+        if self.err:
+            raise check_err()
+        return True
+
+class check_failed_t(check_base_t):
+    @override
+    def __init__(self, testcase: testsuit_base_t) -> None:
+        super().__init__(testcase)
+
+    @override
+    def __enter__(self) -> Self:
+        process_events()
+        return self
+
+    @override
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        exc_traceback: types.TracebackType | None,
+    ) -> bool | None:
+        process_events()
+
+        frame = get_frame(1)
+
+        record = record_t(
+            ts=time.time(),
+            seq=logger.get_seq(level_t.T),
+            level=level_t.T,
+            nid=logger.get_nid(),
+            nname=logger.get_nname(),
+            pid=os.getpid(),
+            pname=multiprocessing.current_process().name,
+            tid=threading.get_ident(),
+            tname=threading.current_thread().name,
+            file="",
+            lineno=0,
+            func="",
+            message="",
+        )
+
+        if frame:
+            record.file = pathlib.PurePath(frame.f_code.co_filename).as_posix()
+            record.lineno = frame.f_lineno
+            record.func = frame.f_code.co_qualname
+
+        self.err = 1
+        if exc_type:
+            if exc_traceback:
+                tb_lineno = exc_traceback.tb_lineno
+            else:
+                tb_lineno = 0
+            record.message = f'核对失败: 发生异常 = {exc_type}("{exc_value}") ({record.file}:{tb_lineno} {record.func})'
+        else:
+            record.message = f"核对失败: 期待返回 != Any, 实际返回 = {self.ret}"
+
+        logger.rawlog(**record.__dict__)
+
+        if self.err:
+            raise check_err()
+        return True
+
+
+class check_true_t(check_base_t):
+    @override
+    def __init__(self, testcase: testsuit_base_t) -> None:
+        super().__init__(testcase)
+        self.exp_ret = True
+
+    @override
+    def __enter__(self) -> Self:
+        process_events()
+        return self
+
+    @override
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        exc_traceback: types.TracebackType | None,
+    ) -> bool | None:
+        process_events()
+
+        frame = get_frame(1)
+
+        record = record_t(
+            ts=time.time(),
+            seq=logger.get_seq(level_t.T),
+            level=level_t.T,
+            nid=logger.get_nid(),
+            nname=logger.get_nname(),
+            pid=os.getpid(),
+            pname=multiprocessing.current_process().name,
+            tid=threading.get_ident(),
+            tname=threading.current_thread().name,
+            file="",
+            lineno=0,
+            func="",
+            message="",
+        )
+
+        if frame:
+            record.file = pathlib.PurePath(frame.f_code.co_filename).as_posix()
+            record.lineno = frame.f_lineno
+            record.func = frame.f_code.co_qualname
+
+        if exc_type:
+            if exc_traceback:
+                tb_lineno = exc_traceback.tb_lineno
+            else:
+                tb_lineno = 0
+            self.err = 1
+            record.message = f'核对失败: 发生异常 = {exc_type}("{exc_value}") ({record.file}:{tb_lineno} {record.func})'
+        elif self.ret == self.exp_ret:
+            self.err = 0
+            record.message = f"核对通过: 期待返回 = {self.exp_ret}, 实际返回 = {self.ret}"
+        else:
+            self.err = 1
+            record.message = f"核对失败: 期待返回 = {self.exp_ret}, 实际返回 = {self.ret}"
+
+        logger.rawlog(**record.__dict__)
+
+        if self.err:
+            raise check_err()
+        return True
+
+
+class check_false_t(check_base_t):
+    @override
+    def __init__(self, testcase: testsuit_base_t) -> None:
+        super().__init__(testcase)
+        self.exp_ret = False
+
+    @override
+    def __enter__(self) -> Self:
+        process_events()
+        return self
+
+    @override
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        exc_traceback: types.TracebackType | None,
+    ) -> bool | None:
+        process_events()
+
+        frame = get_frame(1)
+
+        record = record_t(
+            ts=time.time(),
+            seq=logger.get_seq(level_t.T),
+            level=level_t.T,
+            nid=logger.get_nid(),
+            nname=logger.get_nname(),
+            pid=os.getpid(),
+            pname=multiprocessing.current_process().name,
+            tid=threading.get_ident(),
+            tname=threading.current_thread().name,
+            file="",
+            lineno=0,
+            func="",
+            message="",
+        )
+
+        if frame:
+            record.file = pathlib.PurePath(frame.f_code.co_filename).as_posix()
+            record.lineno = frame.f_lineno
+            record.func = frame.f_code.co_qualname
+
+        if exc_type:
+            if exc_traceback:
+                tb_lineno = exc_traceback.tb_lineno
+            else:
+                tb_lineno = 0
+            self.err = 1
+            record.message = f'核对失败: 发生异常 = {exc_type}("{exc_value}") ({record.file}:{tb_lineno} {record.func})'
+        elif self.ret == self.exp_ret:
+            self.err = 0
+            record.message = f"核对通过: 期待返回 = {self.exp_ret}, 实际返回 = {self.ret}"
+        else:
+            self.err = 1
+            record.message = f"核对失败: 期待返回 = {self.exp_ret}, 实际返回 = {self.ret}"
+
+        logger.rawlog(**record.__dict__)
+
+        if self.err:
+            raise check_err()
         return True
 
 
@@ -186,19 +513,854 @@ class check_eq_t(check_base_t):
             record.lineno = frame.f_lineno
             record.func = frame.f_code.co_qualname
 
-        if exc_type is not None:
+        if exc_type:
             if exc_traceback:
                 tb_lineno = exc_traceback.tb_lineno
             else:
                 tb_lineno = 0
             self.err = 1
-            record.message = f'核对失败: 发生异常({os.path.basename(record.file)}:{tb_lineno}) = {exc_type.__name__}("{exc_value}")'
-        elif self.ret != self.exp_ret:
-            self.err = 1
-            record.message = f"核对失败: 期待返回 = {self.exp_ret}, 实际返回 = {self.ret}"
-        else:
+            record.message = f'核对失败: 发生异常 = {exc_type}("{exc_value}") ({record.file}:{tb_lineno} {record.func})'
+        elif self.ret == self.exp_ret:
             self.err = 0
             record.message = f"核对通过: 期待返回 = {self.exp_ret}, 实际返回 = {self.ret}"
+        else:
+            self.err = 1
+            record.message = f"核对失败: 期待返回 = {self.exp_ret}, 实际返回 = {self.ret}"
+
+        logger.rawlog(**record.__dict__)
+
+        if self.err:
+            raise check_err()
+        return True
+
+
+class check_ne_t(check_base_t):
+    @override
+    def __init__(self, testcase: testsuit_base_t, exp_ret: Any) -> None:
+        super().__init__(testcase)
+        self.exp_ret = exp_ret
+
+    @override
+    def __enter__(self) -> Self:
+        process_events()
+        return self
+
+    @override
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        exc_traceback: types.TracebackType | None,
+    ) -> bool | None:
+        process_events()
+
+        frame = get_frame(1)
+
+        record = record_t(
+            ts=time.time(),
+            seq=logger.get_seq(level_t.T),
+            level=level_t.T,
+            nid=logger.get_nid(),
+            nname=logger.get_nname(),
+            pid=os.getpid(),
+            pname=multiprocessing.current_process().name,
+            tid=threading.get_ident(),
+            tname=threading.current_thread().name,
+            file="",
+            lineno=0,
+            func="",
+            message="",
+        )
+
+        if frame:
+            record.file = pathlib.PurePath(frame.f_code.co_filename).as_posix()
+            record.lineno = frame.f_lineno
+            record.func = frame.f_code.co_qualname
+
+        if exc_type:
+            if exc_traceback:
+                tb_lineno = exc_traceback.tb_lineno
+            else:
+                tb_lineno = 0
+            self.err = 1
+            record.message = f'核对失败: 发生异常 = {exc_type}("{exc_value}") ({record.file}:{tb_lineno} {record.func})'
+        elif self.ret != self.exp_ret:
+            self.err = 0
+            record.message = f"核对通过: 期待返回 != {self.exp_ret}, 实际返回 = {self.ret}"
+        else:
+            self.err = 1
+            record.message = f"核对失败: 期待返回 != {self.exp_ret}, 实际返回 = {self.ret}"
+
+        logger.rawlog(**record.__dict__)
+
+        if self.err:
+            raise check_err()
+        return True
+
+
+class check_lt_t(check_base_t):
+    @override
+    def __init__(self, testcase: testsuit_base_t, exp_ret: Any) -> None:
+        super().__init__(testcase)
+        self.exp_ret = exp_ret
+
+    @override
+    def __enter__(self) -> Self:
+        process_events()
+        return self
+
+    @override
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        exc_traceback: types.TracebackType | None,
+    ) -> bool | None:
+        process_events()
+
+        frame = get_frame(1)
+
+        record = record_t(
+            ts=time.time(),
+            seq=logger.get_seq(level_t.T),
+            level=level_t.T,
+            nid=logger.get_nid(),
+            nname=logger.get_nname(),
+            pid=os.getpid(),
+            pname=multiprocessing.current_process().name,
+            tid=threading.get_ident(),
+            tname=threading.current_thread().name,
+            file="",
+            lineno=0,
+            func="",
+            message="",
+        )
+
+        if frame:
+            record.file = pathlib.PurePath(frame.f_code.co_filename).as_posix()
+            record.lineno = frame.f_lineno
+            record.func = frame.f_code.co_qualname
+
+        if exc_type:
+            if exc_traceback:
+                tb_lineno = exc_traceback.tb_lineno
+            else:
+                tb_lineno = 0
+            self.err = 1
+            record.message = f'核对失败: 发生异常 = {exc_type}("{exc_value}") ({record.file}:{tb_lineno} {record.func})'
+        elif self.ret < self.exp_ret:
+            self.err = 0
+            record.message = f"核对通过: 期待返回 < {self.exp_ret}, 实际返回 = {self.ret}"
+        else:
+            self.err = 1
+            record.message = f"核对失败: 期待返回 < {self.exp_ret}, 实际返回 = {self.ret}"
+
+        logger.rawlog(**record.__dict__)
+
+        if self.err:
+            raise check_err()
+        return True
+
+
+class check_le_t(check_base_t):
+    @override
+    def __init__(self, testcase: testsuit_base_t, exp_ret: Any) -> None:
+        super().__init__(testcase)
+        self.exp_ret = exp_ret
+
+    @override
+    def __enter__(self) -> Self:
+        process_events()
+        return self
+
+    @override
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        exc_traceback: types.TracebackType | None,
+    ) -> bool | None:
+        process_events()
+
+        frame = get_frame(1)
+
+        record = record_t(
+            ts=time.time(),
+            seq=logger.get_seq(level_t.T),
+            level=level_t.T,
+            nid=logger.get_nid(),
+            nname=logger.get_nname(),
+            pid=os.getpid(),
+            pname=multiprocessing.current_process().name,
+            tid=threading.get_ident(),
+            tname=threading.current_thread().name,
+            file="",
+            lineno=0,
+            func="",
+            message="",
+        )
+
+        if frame:
+            record.file = pathlib.PurePath(frame.f_code.co_filename).as_posix()
+            record.lineno = frame.f_lineno
+            record.func = frame.f_code.co_qualname
+
+        if exc_type:
+            if exc_traceback:
+                tb_lineno = exc_traceback.tb_lineno
+            else:
+                tb_lineno = 0
+            self.err = 1
+            record.message = f'核对失败: 发生异常 = {exc_type}("{exc_value}") ({record.file}:{tb_lineno} {record.func})'
+        elif self.ret <= self.exp_ret:
+            self.err = 0
+            record.message = f"核对通过: 期待返回 <= {self.exp_ret}, 实际返回 = {self.ret}"
+        else:
+            self.err = 1
+            record.message = f"核对失败: 期待返回 <= {self.exp_ret}, 实际返回 = {self.ret}"
+
+        logger.rawlog(**record.__dict__)
+
+        if self.err:
+            raise check_err()
+        return True
+
+
+class check_gt_t(check_base_t):
+    @override
+    def __init__(self, testcase: testsuit_base_t, exp_ret: Any) -> None:
+        super().__init__(testcase)
+        self.exp_ret = exp_ret
+
+    @override
+    def __enter__(self) -> Self:
+        process_events()
+        return self
+
+    @override
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        exc_traceback: types.TracebackType | None,
+    ) -> bool | None:
+        process_events()
+
+        frame = get_frame(1)
+
+        record = record_t(
+            ts=time.time(),
+            seq=logger.get_seq(level_t.T),
+            level=level_t.T,
+            nid=logger.get_nid(),
+            nname=logger.get_nname(),
+            pid=os.getpid(),
+            pname=multiprocessing.current_process().name,
+            tid=threading.get_ident(),
+            tname=threading.current_thread().name,
+            file="",
+            lineno=0,
+            func="",
+            message="",
+        )
+
+        if frame:
+            record.file = pathlib.PurePath(frame.f_code.co_filename).as_posix()
+            record.lineno = frame.f_lineno
+            record.func = frame.f_code.co_qualname
+
+        if exc_type:
+            if exc_traceback:
+                tb_lineno = exc_traceback.tb_lineno
+            else:
+                tb_lineno = 0
+            self.err = 1
+            record.message = f'核对失败: 发生异常 = {exc_type}("{exc_value}") ({record.file}:{tb_lineno} {record.func})'
+        elif self.ret > self.exp_ret:
+            self.err = 0
+            record.message = f"核对通过: 期待返回 > {self.exp_ret}, 实际返回 = {self.ret}"
+        else:
+            self.err = 1
+            record.message = f"核对失败: 期待返回 > {self.exp_ret}, 实际返回 = {self.ret}"
+
+        logger.rawlog(**record.__dict__)
+
+        if self.err:
+            raise check_err()
+        return True
+
+
+class check_ge_t(check_base_t):
+    @override
+    def __init__(self, testcase: testsuit_base_t, exp_ret: Any) -> None:
+        super().__init__(testcase)
+        self.exp_ret = exp_ret
+
+    @override
+    def __enter__(self) -> Self:
+        process_events()
+        return self
+
+    @override
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        exc_traceback: types.TracebackType | None,
+    ) -> bool | None:
+        process_events()
+
+        frame = get_frame(1)
+
+        record = record_t(
+            ts=time.time(),
+            seq=logger.get_seq(level_t.T),
+            level=level_t.T,
+            nid=logger.get_nid(),
+            nname=logger.get_nname(),
+            pid=os.getpid(),
+            pname=multiprocessing.current_process().name,
+            tid=threading.get_ident(),
+            tname=threading.current_thread().name,
+            file="",
+            lineno=0,
+            func="",
+            message="",
+        )
+
+        if frame:
+            record.file = pathlib.PurePath(frame.f_code.co_filename).as_posix()
+            record.lineno = frame.f_lineno
+            record.func = frame.f_code.co_qualname
+
+        if exc_type:
+            if exc_traceback:
+                tb_lineno = exc_traceback.tb_lineno
+            else:
+                tb_lineno = 0
+            self.err = 1
+            record.message = f'核对失败: 发生异常 = {exc_type}("{exc_value}") ({record.file}:{tb_lineno} {record.func})'
+        elif self.ret >= self.exp_ret:
+            self.err = 0
+            record.message = f"核对通过: 期待返回 >= {self.exp_ret}, 实际返回 = {self.ret}"
+        else:
+            self.err = 1
+            record.message = f"核对失败: 期待返回 >= {self.exp_ret}, 实际返回 = {self.ret}"
+
+        logger.rawlog(**record.__dict__)
+
+        if self.err:
+            raise check_err()
+        return True
+
+
+class check_is_t(check_base_t):
+    @override
+    def __init__(self, testcase: testsuit_base_t, exp_ret: Any) -> None:
+        super().__init__(testcase)
+        self.exp_ret = exp_ret
+
+    @override
+    def __enter__(self) -> Self:
+        process_events()
+        return self
+
+    @override
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        exc_traceback: types.TracebackType | None,
+    ) -> bool | None:
+        process_events()
+
+        frame = get_frame(1)
+
+        record = record_t(
+            ts=time.time(),
+            seq=logger.get_seq(level_t.T),
+            level=level_t.T,
+            nid=logger.get_nid(),
+            nname=logger.get_nname(),
+            pid=os.getpid(),
+            pname=multiprocessing.current_process().name,
+            tid=threading.get_ident(),
+            tname=threading.current_thread().name,
+            file="",
+            lineno=0,
+            func="",
+            message="",
+        )
+
+        if frame:
+            record.file = pathlib.PurePath(frame.f_code.co_filename).as_posix()
+            record.lineno = frame.f_lineno
+            record.func = frame.f_code.co_qualname
+
+        if exc_type:
+            if exc_traceback:
+                tb_lineno = exc_traceback.tb_lineno
+            else:
+                tb_lineno = 0
+            self.err = 1
+            record.message = f'核对失败: 发生异常 = {exc_type}("{exc_value}") ({record.file}:{tb_lineno} {record.func})'
+        elif self.ret is self.exp_ret:
+            self.err = 0
+            record.message = f"核对通过: 期待返回 is {self.exp_ret}, 实际返回 = {self.ret}"
+        else:
+            self.err = 1
+            record.message = f"核对失败: 期待返回 is {self.exp_ret}, 实际返回 = {self.ret}"
+
+        logger.rawlog(**record.__dict__)
+
+        if self.err:
+            raise check_err()
+        return True
+
+
+class check_not_is_t(check_base_t):
+    @override
+    def __init__(self, testcase: testsuit_base_t, exp_ret: Any) -> None:
+        super().__init__(testcase)
+        self.exp_ret = exp_ret
+
+    @override
+    def __enter__(self) -> Self:
+        process_events()
+        return self
+
+    @override
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        exc_traceback: types.TracebackType | None,
+    ) -> bool | None:
+        process_events()
+
+        frame = get_frame(1)
+
+        record = record_t(
+            ts=time.time(),
+            seq=logger.get_seq(level_t.T),
+            level=level_t.T,
+            nid=logger.get_nid(),
+            nname=logger.get_nname(),
+            pid=os.getpid(),
+            pname=multiprocessing.current_process().name,
+            tid=threading.get_ident(),
+            tname=threading.current_thread().name,
+            file="",
+            lineno=0,
+            func="",
+            message="",
+        )
+
+        if frame:
+            record.file = pathlib.PurePath(frame.f_code.co_filename).as_posix()
+            record.lineno = frame.f_lineno
+            record.func = frame.f_code.co_qualname
+
+        if exc_type:
+            if exc_traceback:
+                tb_lineno = exc_traceback.tb_lineno
+            else:
+                tb_lineno = 0
+            self.err = 1
+            record.message = f'核对失败: 发生异常 = {exc_type}("{exc_value}") ({record.file}:{tb_lineno} {record.func})'
+        elif not (self.ret is self.exp_ret):
+            self.err = 0
+            record.message = f"核对通过: 期待返回 not is {self.exp_ret}, 实际返回 = {self.ret}"
+        else:
+            self.err = 1
+            record.message = f"核对失败: 期待返回 not is {self.exp_ret}, 实际返回 = {self.ret}"
+
+        logger.rawlog(**record.__dict__)
+
+        if self.err:
+            raise check_err()
+        return True
+
+
+class check_in_t(check_base_t):
+    @override
+    def __init__(self, testcase: testsuit_base_t, exp_ret: Any) -> None:
+        super().__init__(testcase)
+        self.exp_ret = exp_ret
+
+    @override
+    def __enter__(self) -> Self:
+        process_events()
+        return self
+
+    @override
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        exc_traceback: types.TracebackType | None,
+    ) -> bool | None:
+        process_events()
+
+        frame = get_frame(1)
+
+        record = record_t(
+            ts=time.time(),
+            seq=logger.get_seq(level_t.T),
+            level=level_t.T,
+            nid=logger.get_nid(),
+            nname=logger.get_nname(),
+            pid=os.getpid(),
+            pname=multiprocessing.current_process().name,
+            tid=threading.get_ident(),
+            tname=threading.current_thread().name,
+            file="",
+            lineno=0,
+            func="",
+            message="",
+        )
+
+        if frame:
+            record.file = pathlib.PurePath(frame.f_code.co_filename).as_posix()
+            record.lineno = frame.f_lineno
+            record.func = frame.f_code.co_qualname
+
+        if exc_type:
+            if exc_traceback:
+                tb_lineno = exc_traceback.tb_lineno
+            else:
+                tb_lineno = 0
+            self.err = 1
+            record.message = f'核对失败: 发生异常 = {exc_type}("{exc_value}") ({record.file}:{tb_lineno} {record.func})'
+        elif self.ret in self.exp_ret:
+            self.err = 0
+            record.message = f"核对通过: 期待返回 in {self.exp_ret}, 实际返回 = {self.ret}"
+        else:
+            self.err = 1
+            record.message = f"核对失败: 期待返回 in {self.exp_ret}, 实际返回 = {self.ret}"
+
+        logger.rawlog(**record.__dict__)
+
+        if self.err:
+            raise check_err()
+        return True
+
+
+class check_not_in_t(check_base_t):
+    @override
+    def __init__(self, testcase: testsuit_base_t, exp_ret: Any) -> None:
+        super().__init__(testcase)
+        self.exp_ret = exp_ret
+
+    @override
+    def __enter__(self) -> Self:
+        process_events()
+        return self
+
+    @override
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        exc_traceback: types.TracebackType | None,
+    ) -> bool | None:
+        process_events()
+
+        frame = get_frame(1)
+
+        record = record_t(
+            ts=time.time(),
+            seq=logger.get_seq(level_t.T),
+            level=level_t.T,
+            nid=logger.get_nid(),
+            nname=logger.get_nname(),
+            pid=os.getpid(),
+            pname=multiprocessing.current_process().name,
+            tid=threading.get_ident(),
+            tname=threading.current_thread().name,
+            file="",
+            lineno=0,
+            func="",
+            message="",
+        )
+
+        if frame:
+            record.file = pathlib.PurePath(frame.f_code.co_filename).as_posix()
+            record.lineno = frame.f_lineno
+            record.func = frame.f_code.co_qualname
+
+        if exc_type:
+            if exc_traceback:
+                tb_lineno = exc_traceback.tb_lineno
+            else:
+                tb_lineno = 0
+            self.err = 1
+            record.message = f'核对失败: 发生异常 = {exc_type}("{exc_value}") ({record.file}:{tb_lineno} {record.func})'
+        elif not (self.ret in self.exp_ret):
+            self.err = 0
+            record.message = f"核对通过: 期待返回 not in {self.exp_ret}, 实际返回 = {self.ret}"
+        else:
+            self.err = 1
+            record.message = f"核对失败: 期待返回 not in {self.exp_ret}, 实际返回 = {self.ret}"
+
+        logger.rawlog(**record.__dict__)
+
+        if self.err:
+            raise check_err()
+        return True
+
+
+class check_isinstance_t(check_base_t):
+    @override
+    def __init__(self, testcase: testsuit_base_t, exp_ret: Any) -> None:
+        super().__init__(testcase)
+        self.exp_ret = exp_ret
+
+    @override
+    def __enter__(self) -> Self:
+        process_events()
+        return self
+
+    @override
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        exc_traceback: types.TracebackType | None,
+    ) -> bool | None:
+        process_events()
+
+        frame = get_frame(1)
+
+        record = record_t(
+            ts=time.time(),
+            seq=logger.get_seq(level_t.T),
+            level=level_t.T,
+            nid=logger.get_nid(),
+            nname=logger.get_nname(),
+            pid=os.getpid(),
+            pname=multiprocessing.current_process().name,
+            tid=threading.get_ident(),
+            tname=threading.current_thread().name,
+            file="",
+            lineno=0,
+            func="",
+            message="",
+        )
+
+        if frame:
+            record.file = pathlib.PurePath(frame.f_code.co_filename).as_posix()
+            record.lineno = frame.f_lineno
+            record.func = frame.f_code.co_qualname
+
+        if exc_type:
+            if exc_traceback:
+                tb_lineno = exc_traceback.tb_lineno
+            else:
+                tb_lineno = 0
+            self.err = 1
+            record.message = f'核对失败: 发生异常 = {exc_type}("{exc_value}") ({record.file}:{tb_lineno} {record.func})'
+        elif isinstance(self.ret, self.exp_ret):
+            self.err = 0
+            record.message = f"核对通过: 期待返回 = {self.exp_ret}, 实际返回 = {self.ret}"
+        else:
+            self.err = 1
+            record.message = f"核对失败: 期待返回 = {self.exp_ret}, 实际返回 = {self.ret}"
+
+        logger.rawlog(**record.__dict__)
+
+        if self.err:
+            raise check_err()
+        return True
+    
+class check_not_isinstance_t(check_base_t):
+    @override
+    def __init__(self, testcase: testsuit_base_t, exp_ret: Any) -> None:
+        super().__init__(testcase)
+        self.exp_ret = exp_ret
+
+    @override
+    def __enter__(self) -> Self:
+        process_events()
+        return self
+
+    @override
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        exc_traceback: types.TracebackType | None,
+    ) -> bool | None:
+        process_events()
+
+        frame = get_frame(1)
+
+        record = record_t(
+            ts=time.time(),
+            seq=logger.get_seq(level_t.T),
+            level=level_t.T,
+            nid=logger.get_nid(),
+            nname=logger.get_nname(),
+            pid=os.getpid(),
+            pname=multiprocessing.current_process().name,
+            tid=threading.get_ident(),
+            tname=threading.current_thread().name,
+            file="",
+            lineno=0,
+            func="",
+            message="",
+        )
+
+        if frame:
+            record.file = pathlib.PurePath(frame.f_code.co_filename).as_posix()
+            record.lineno = frame.f_lineno
+            record.func = frame.f_code.co_qualname
+
+        if exc_type:
+            if exc_traceback:
+                tb_lineno = exc_traceback.tb_lineno
+            else:
+                tb_lineno = 0
+            self.err = 1
+            record.message = f'核对失败: 发生异常 = {exc_type}("{exc_value}") ({record.file}:{tb_lineno} {record.func})'
+        elif not isinstance(self.ret, self.exp_ret):
+            self.err = 1
+            record.message = f"核对通过: 期待返回 != {self.exp_ret}, 实际返回 = {self.ret}"
+        else:
+            self.err = 0
+            record.message = f"核对失败: 期待返回 != {self.exp_ret}, 实际返回 = {self.ret}"
+
+        logger.rawlog(**record.__dict__)
+
+        if self.err:
+            raise check_err()
+        return True
+
+
+class check_exc_t(check_base_t):
+    @override
+    def __init__(self, testcase: testsuit_base_t, exp_ret: Any) -> None:
+        super().__init__(testcase)
+        self.exp_ret = exp_ret
+
+    @override
+    def __enter__(self) -> Self:
+        process_events()
+        return self
+
+    @override
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        exc_traceback: types.TracebackType | None,
+    ) -> bool | None:
+        process_events()
+
+        frame = get_frame(1)
+
+        record = record_t(
+            ts=time.time(),
+            seq=logger.get_seq(level_t.T),
+            level=level_t.T,
+            nid=logger.get_nid(),
+            nname=logger.get_nname(),
+            pid=os.getpid(),
+            pname=multiprocessing.current_process().name,
+            tid=threading.get_ident(),
+            tname=threading.current_thread().name,
+            file="",
+            lineno=0,
+            func="",
+            message="",
+        )
+
+        if frame:
+            record.file = pathlib.PurePath(frame.f_code.co_filename).as_posix()
+            record.lineno = frame.f_lineno
+            record.func = frame.f_code.co_qualname
+
+        if exc_type:
+            if exc_traceback:
+                tb_lineno = exc_traceback.tb_lineno
+            else:
+                tb_lineno = 0
+
+            if not issubclass(exc_type, self.exp_ret) or not isinstance(exc_value, self.exp_ret):
+                self.err = 1
+                record.message = f'核对失败: 期待异常 = {self.exp_ret}, 实际异常 = {exc_type}("{exc_value}") ({record.file}:{tb_lineno} {record.func})")'
+            else:
+                self.err = 0
+                record.message = f'核对通过: 期待异常 = {self.exp_ret}, 实际异常 = {exc_type}("{exc_value}") ({record.file}:{tb_lineno} {record.func})")'
+        else:
+            self.err = 1
+            record.message = f"核对失败: 期待异常 = {self.exp_ret}, 实际异常 = None"
+
+        logger.rawlog(**record.__dict__)
+
+        if self.err:
+            raise check_err()
+        return True
+
+
+class check_not_exc_t(check_base_t):
+    @override
+    def __init__(self, testcase: testsuit_base_t, exp_ret: Any) -> None:
+        super().__init__(testcase)
+        self.exp_ret = exp_ret
+
+    @override
+    def __enter__(self) -> Self:
+        process_events()
+        return self
+
+    @override
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        exc_traceback: types.TracebackType | None,
+    ) -> bool | None:
+        process_events()
+
+        frame = get_frame(1)
+
+        record = record_t(
+            ts=time.time(),
+            seq=logger.get_seq(level_t.T),
+            level=level_t.T,
+            nid=logger.get_nid(),
+            nname=logger.get_nname(),
+            pid=os.getpid(),
+            pname=multiprocessing.current_process().name,
+            tid=threading.get_ident(),
+            tname=threading.current_thread().name,
+            file="",
+            lineno=0,
+            func="",
+            message="",
+        )
+
+        if frame:
+            record.file = pathlib.PurePath(frame.f_code.co_filename).as_posix()
+            record.lineno = frame.f_lineno
+            record.func = frame.f_code.co_qualname
+
+        if exc_type:
+            if exc_traceback:
+                tb_lineno = exc_traceback.tb_lineno
+            else:
+                tb_lineno = 0
+
+            if issubclass(exc_type, self.exp_ret) and isinstance(exc_value, self.exp_ret):
+                self.err = 1
+                record.message = f'核对失败: 期待异常 != {self.exp_ret}, 实际异常 = {exc_type}("{exc_value}") ({record.file}:{tb_lineno} {record.func})")'
+            else:
+                self.err = 0
+                record.message = f'核对通过: 期待异常 != {self.exp_ret}, 实际异常 = {exc_type}("{exc_value}") ({record.file}:{tb_lineno} {record.func})")'
+        else:
+            self.err = 0
+            record.message = f"核对失败: 期待异常 != {self.exp_ret}, 实际异常 = None"
 
         logger.rawlog(**record.__dict__)
 
