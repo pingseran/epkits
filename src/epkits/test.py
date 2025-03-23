@@ -1,5 +1,10 @@
 __all__ = ["reg_process_events_handle", "skip", "testsuit_base_t", "run_all_tests"]
 
+'''
+接口测试, 而非单元测试
+不建议用mock, 用mock只是增加了工作量, 没有测试真实的数据, 只是数据好看而已.
+'''
+
 import time
 import os
 import multiprocessing
