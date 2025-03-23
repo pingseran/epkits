@@ -24,13 +24,10 @@ def twosum(a: int, b: int) -> int:
 
 class test_twosum_t(ep.testsuit_base_t):
     def test_twosum_positive(self) -> None:
-        with self.check_eq(4) as check:
+        with self.check_eq(3) as check:
             check.ret = twosum(1, 2)
 
     def test_twosum_negative(self) -> None:
-        with self.check_exc(ValueError) as check:
-            check.ret = twosum(-1, -1)
-
         with self.check_eq(-2) as check:
             check.ret = twosum(-1, -1)
 
