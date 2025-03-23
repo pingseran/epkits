@@ -9,16 +9,12 @@ import queue
 
 from .record import record_t
 from .mlogger import mlogger
+from .filelock import filelock_t
 
 
 class logger_server_t:
     def __init__(self) -> None:
         self.rotate_last_time = 0
-
-        self.dir = "./log"
-        self.prefix = "ep"
-        self.log_size = 1024 * 1024 * 10
-        self.log_count = 10
 
         self.log_file = None
         self.log_quick_file = None
@@ -28,8 +24,16 @@ class logger_server_t:
 
         self.log_thread_stop = 0
         self.log_thread = threading.Thread(target=self.worker, name="eplog", daemon=True)
-        self.log_thread.start()
 
+    def init(self):
+        self.dir = "./log"
+        self.prefix = "ep"
+        self.log_size = 1024 * 1024 * 10
+        self.log_count = 10
+
+        self.fl = filelock_t(os.path.join(self.dir, f"{self.prefix}.lock"))
+        self.fl.acquire()
+        self.log_thread.start()
         atexit.register(self.exit)
 
     def handle(self, record: record_t, *, quick: bool = False) -> None:
@@ -84,6 +88,7 @@ class logger_server_t:
     def exit(self) -> None:
         self.log_thread_stop = time.monotonic() + 1
         self.log_thread.join()
+        self.fl.release()
 
     def rotate(self) -> None:
         if os.path.getsize(os.path.join(self.dir, f"{self.prefix}.0.log")) >= self.log_size:

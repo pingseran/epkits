@@ -7,9 +7,13 @@ import os
 # 将 src 目录添加到 sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
+import time
+
 import epkits as ep
 
 ep.enable_debug()
+
+ep.init()
 
 
 @ep.reg_process_events_handle
@@ -49,5 +53,6 @@ class test_1_t(ep.testsuit_base_t):
 
 
 if __name__ == "__main__":
+    time.sleep(10)
     exit_code = ep.run_all_tests()
     exit(exit_code)

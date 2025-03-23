@@ -2,6 +2,7 @@ __all__ = ["get_frame"]
 
 import inspect
 import types
+import time
 
 
 def get_frame(back: int = 0) -> types.FrameType | None:
